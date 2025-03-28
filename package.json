@@ -1,0 +1,25 @@
+{
+  "name": "places-etl",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "format": "biome check --write",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seguri/places-etl.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/seguri/places-etl/issues"
+  },
+  "homepage": "https://github.com/seguri/places-etl#readme",
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4"
+  }
+}
