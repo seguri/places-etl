@@ -5,6 +5,9 @@
   "main": "index.js",
   "scripts": {
     "format": "biome check --write",
+    "build": "tsc",
+    "extract:dev": "tsx src/extract.ts",
+    "extract": "npm run build && node dist/extract.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -14,12 +17,16 @@
   "keywords": [],
   "author": "",
   "license": "MIT",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/seguri/places-etl/issues"
   },
   "homepage": "https://github.com/seguri/places-etl#readme",
   "devDependencies": {
-    "@biomejs/biome": "1.9.4"
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "^22.13.14",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
   }
 }
