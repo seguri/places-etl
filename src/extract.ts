@@ -1,25 +1,26 @@
-import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { readJsonFromArchive } from "./unarchive.js";
 
-// Example of async main function
 async function main() {
-  console.log("Hello, World!");
-
-  try {
-    // Simulate an async operation
-    const result = await new Promise((resolve) => {
-      setTimeout(() => resolve("Async operation completed!"), 1000);
-    });
-
-    console.log(result);
-  } catch (error) {
-    console.error("Error:", error);
-    process.exit(1);
+  const archivePath = resolve(
+    homedir(),
+    "Downloads/takeout-20250325T224539Z-001.zip",
+  );
+  const filenames = [
+    "Saved Places.json",
+    "Favourite places.csv",
+    "Want to go.csv",
+  ];
+  for (const filename of filenames) {
+    const json = await readJsonFromArchive(archivePath, filename);
+    // TODO: Store extracted data in sqlite database
   }
 }
 
 // Normalize `import.meta.url` and `process.argv[1]`
-const thisFilePath = fileURLToPath(import.meta.url); // Convert `import.meta.url` to a file path
+const thisFilePath = fileURLToPath(import.meta.url);
 
 // Check if this file is being run directly
 if (thisFilePath === resolve(process.argv[1])) {
