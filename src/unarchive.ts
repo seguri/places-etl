@@ -1,4 +1,5 @@
 import { text } from "node:stream/consumers";
+import * as csv from "@fast-csv/parse";
 import yauzl from "yauzl-promise";
 
 interface ArchiveExtractor {
@@ -11,6 +12,33 @@ interface FileConverter {
   canHandle(filename: string): boolean;
   convertToGeoJson(content: string): Promise<object>;
 }
+
+type CsvRow = {
+  Title: string;
+  Note: string;
+  URL: string;
+  Comment: string;
+};
+
+type CsvRowWithCid = CsvRow & {
+  CID: string;
+};
+
+const convertToGeoJsonFeature = (
+  name: string,
+  cid: string,
+  lat: number = Number.NaN,
+  lng: number = Number.NaN,
+) => ({
+  type: "Feature",
+  geometry: { type: "Point", coordinates: [lng, lat] },
+  properties: {
+    google_maps_url: `http://maps.google.com/?cid=${cid}`,
+    location: {
+      name: name,
+    },
+  },
+});
 
 class ZipExtractor implements ArchiveExtractor {
   canHandle(archivePath: string): boolean {
@@ -45,14 +73,46 @@ class JsonConverter implements FileConverter {
   }
 }
 
+/** CSV files inside google takeout archive contain only name and URL */
 class CsvConverter implements FileConverter {
   canHandle(fileName: string): boolean {
     return fileName.endsWith(".csv");
   }
 
   async convertToGeoJson(content: string): Promise<object> {
-    // TODO: Implement CSV to GeoJSON conversion
-    return {};
+    const rows = await this.parseCsvString(content);
+    return {
+      type: "FeatureCollection",
+      features: rows.map((row) => convertToGeoJsonFeature(row.Title, row.CID)),
+    };
+  }
+
+  /** Consumes the stream to return all rows at once */
+  private async parseCsvString(content: string): Promise<CsvRowWithCid[]> {
+    return new Promise((resolve, reject) => {
+      const rows: CsvRowWithCid[] = [];
+      csv
+        .parseString<CsvRow, CsvRowWithCid>(content, { headers: true })
+        .transform(this.addCid.bind(this))
+        .on("data", (row) => rows.push(row))
+        .on("end", () => resolve(rows))
+        .on("error", (err) => reject(err));
+    });
+  }
+
+  private addCid(row: CsvRow): CsvRowWithCid {
+    return {
+      ...row,
+      CID: this.parseCid(row.URL),
+    };
+  }
+
+  private parseCid(url: string): string {
+    const match = url.match(/(?:0x[0-9a-f]+):(0x[0-9a-f]+)$/);
+    if (!match) {
+      throw new Error(`Invalid google_maps_url: ${url}`);
+    }
+    return BigInt(match[1]).toString();
   }
 }
 
