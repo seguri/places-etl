@@ -6,9 +6,10 @@ interface ArchiveExtractor {
   extract(archivePath: string, filename: string): Promise<string>;
 }
 
+/** Converts file content to GeoJSON */
 interface FileConverter {
   canHandle(filename: string): boolean;
-  convertToJson(content: string): Promise<object>;
+  convertToGeoJson(content: string): Promise<object>;
 }
 
 class ZipExtractor implements ArchiveExtractor {
@@ -33,12 +34,13 @@ class ZipExtractor implements ArchiveExtractor {
   }
 }
 
+/** JSON files inside google takeout archive are already in GeoJSON format */
 class JsonConverter implements FileConverter {
   canHandle(fileName: string): boolean {
     return fileName.endsWith(".json");
   }
 
-  async convertToJson(content: string): Promise<object> {
+  async convertToGeoJson(content: string): Promise<object> {
     return JSON.parse(content);
   }
 }
@@ -48,16 +50,16 @@ class CsvConverter implements FileConverter {
     return fileName.endsWith(".csv");
   }
 
-  async convertToJson(content: string): Promise<object> {
-    // TODO: Implement CSV to JSON conversion
+  async convertToGeoJson(content: string): Promise<object> {
+    // TODO: Implement CSV to GeoJSON conversion
     return {};
   }
 }
 
-export async function readJsonFromArchive(
+export async function readGeoJsonFromArchive(
   archiveFullPath: string,
   desiredFilename: string,
-): Promise<string> {
+): Promise<object> {
   // Available extractors
   const extractors: ArchiveExtractor[] = [new ZipExtractor()];
 
@@ -79,6 +81,6 @@ export async function readJsonFromArchive(
     throw new Error(`${desiredFilename}: unsupported file format`);
   }
 
-  // Convert to JSON
-  return await converter.convertToJson(fileContent);
+  // Convert to GeoJSON
+  return await converter.convertToGeoJson(fileContent);
 }

@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readJsonFromArchive } from "./unarchive.js";
+import { readGeoJsonFromArchive } from "./unarchive.js";
 
 async function main() {
   const archivePath = resolve(
@@ -14,7 +14,7 @@ async function main() {
     "Want to go.csv",
   ];
   for (const filename of filenames) {
-    const json = await readJsonFromArchive(archivePath, filename);
+    const json = await readGeoJsonFromArchive(archivePath, filename);
     // TODO: Store extracted data in sqlite database
   }
 }
