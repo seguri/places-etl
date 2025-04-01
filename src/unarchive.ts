@@ -87,9 +87,16 @@ class JsonConverter implements FileConverter {
   ): Promise<ExtractedPlace[]> {
     const createdAt = new Date();
     const featureCollection = JSON.parse(content);
-    return featureCollection.features.map(
+    console.log(
+      `${sourceFilename}: ${featureCollection.features.length} features`,
+    );
+    const validFeatures = featureCollection.features.filter(
+      this.validateFeature.bind(this),
+    );
+    console.log(`${sourceFilename}: ${validFeatures.length} valid features`);
+    return validFeatures.map(
       (feature: GeoJSONFeature): ExtractedPlace => ({
-        cid: feature.properties.google_maps_url.split("=")[1],
+        cid: this.parseCid(feature.properties.google_maps_url),
         type: getPlaceType(sourceFilename),
         name: feature?.properties?.location?.name,
         latitude: feature.geometry.coordinates[1],
@@ -99,6 +106,16 @@ class JsonConverter implements FileConverter {
         createdAt: createdAt,
       }),
     );
+  }
+
+  private validateFeature(feature: GeoJSONFeature): boolean {
+    return feature?.properties?.google_maps_url?.includes(
+      "://maps.google.com/?cid=",
+    );
+  }
+
+  private parseCid(url: string): string {
+    return url.split("=")[1];
   }
 }
 
