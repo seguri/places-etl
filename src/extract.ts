@@ -1,12 +1,11 @@
-import { homedir } from "node:os";
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { DOWNLOADS_DIR, isMain } from "./settings.js";
 import { readGeoJsonFromArchive } from "./unarchive.js";
 
 async function main() {
   const archivePath = resolve(
-    homedir(),
-    "Downloads/takeout-20250325T224539Z-001.zip",
+    DOWNLOADS_DIR,
+    "takeout-20250325T224539Z-001.zip",
   );
   const filenames = [
     "Saved Places.json",
@@ -19,11 +18,8 @@ async function main() {
   }
 }
 
-// Normalize `import.meta.url` and `process.argv[1]`
-const thisFilePath = fileURLToPath(import.meta.url);
-
 // Check if this file is being run directly
-if (thisFilePath === resolve(process.argv[1])) {
+if (isMain(import.meta.url)) {
   main().catch((err) => {
     console.error("Unhandled error in main:", err);
     process.exit(1);
