@@ -1,44 +1,56 @@
 import { text } from "node:stream/consumers";
 import * as csv from "@fast-csv/parse";
 import yauzl from "yauzl-promise";
+import type { ExtractedPlace } from "./types.js";
 
 interface ArchiveExtractor {
-  canHandle(archivePath: string): boolean;
-  extract(archivePath: string, filename: string): Promise<string>;
+  canHandle(sourceArchive: string): boolean;
+  extract(sourceArchive: string, sourceFilename: string): Promise<string>;
 }
 
-/** Converts file content to GeoJSON */
+/** Converts file content to ExtractedPlace[] */
 interface FileConverter {
   canHandle(filename: string): boolean;
-  convertToGeoJson(content: string): Promise<object>;
+  convertToExtractedPlaces(
+    content: string,
+    sourceArchive: string,
+    sourceFilename: string,
+  ): Promise<ExtractedPlace[]>;
 }
 
-type CsvRow = {
+/** How data looks like when extracted from a GeoJSON file */
+interface GeoJSONFeature {
+  geometry: {
+    coordinates: [number, number];
+  };
+  properties: {
+    google_maps_url: string;
+    location: {
+      name: string;
+    };
+  };
+}
+
+/** How data looks like when extracted from a CSV file */
+interface CsvRow {
   Title: string;
   Note: string;
   URL: string;
   Comment: string;
-};
+}
 
-type CsvRowWithCid = CsvRow & {
-  CID: string;
+const getPlaceType = (filename: string) => {
+  if (filename.includes("Saved Places")) {
+    return "saved";
+  }
+  if (filename.includes("Favourite places")) {
+    return "favourite";
+  }
+  if (filename.includes("Want to go")) {
+    return "wishlist";
+  }
+  throw new Error(`${filename}: cannot find a corresponding place type`);
 };
-
-const convertToGeoJsonFeature = (
-  name: string,
-  cid: string,
-  lat: number = Number.NaN,
-  lng: number = Number.NaN,
-) => ({
-  type: "Feature",
-  geometry: { type: "Point", coordinates: [lng, lat] },
-  properties: {
-    google_maps_url: `http://maps.google.com/?cid=${cid}`,
-    location: {
-      name: name,
-    },
-  },
-});
 
 class ZipExtractor implements ArchiveExtractor {
   canHandle(archivePath: string): boolean {
@@ -68,8 +80,25 @@ class JsonConverter implements FileConverter {
     return fileName.endsWith(".json");
   }
 
-  async convertToGeoJson(content: string): Promise<object> {
-    return JSON.parse(content);
+  async convertToExtractedPlaces(
+    content: string,
+    sourceArchive: string,
+    sourceFilename: string,
+  ): Promise<ExtractedPlace[]> {
+    const createdAt = new Date();
+    const featureCollection = JSON.parse(content);
+    return featureCollection.features.map(
+      (feature: GeoJSONFeature): ExtractedPlace => ({
+        cid: feature.properties.google_maps_url.split("=")[1],
+        type: getPlaceType(sourceFilename),
+        name: feature?.properties?.location?.name,
+        latitude: feature.geometry.coordinates[1],
+        longitude: feature.geometry.coordinates[0],
+        sourceArchive: sourceArchive,
+        sourceFile: sourceFilename,
+        createdAt: createdAt,
+      }),
+    );
   }
 }
 
@@ -79,32 +108,37 @@ class CsvConverter implements FileConverter {
     return fileName.endsWith(".csv");
   }
 
-  async convertToGeoJson(content: string): Promise<object> {
+  async convertToExtractedPlaces(
+    content: string,
+    sourceArchive: string,
+    sourceFilename: string,
+  ): Promise<ExtractedPlace[]> {
+    const createdAt = new Date();
     const rows = await this.parseCsvString(content);
-    return {
-      type: "FeatureCollection",
-      features: rows.map((row) => convertToGeoJsonFeature(row.Title, row.CID)),
-    };
+    return rows.map(
+      (row: CsvRow): ExtractedPlace => ({
+        cid: this.parseCid(row.URL),
+        type: getPlaceType(sourceFilename),
+        name: row.Title,
+        latitude: Number.NaN,
+        longitude: Number.NaN,
+        sourceArchive: sourceArchive,
+        sourceFile: sourceFilename,
+        createdAt: createdAt,
+      }),
+    );
   }
 
   /** Consumes the stream to return all rows at once */
-  private async parseCsvString(content: string): Promise<CsvRowWithCid[]> {
+  private async parseCsvString(content: string): Promise<CsvRow[]> {
     return new Promise((resolve, reject) => {
-      const rows: CsvRowWithCid[] = [];
+      const rows: CsvRow[] = [];
       csv
-        .parseString<CsvRow, CsvRowWithCid>(content, { headers: true })
-        .transform(this.addCid.bind(this))
+        .parseString<CsvRow, CsvRow>(content, { headers: true })
         .on("data", (row) => rows.push(row))
         .on("end", () => resolve(rows))
         .on("error", (err) => reject(err));
     });
-  }
-
-  private addCid(row: CsvRow): CsvRowWithCid {
-    return {
-      ...row,
-      CID: this.parseCid(row.URL),
-    };
   }
 
   private parseCid(url: string): string {
@@ -116,10 +150,10 @@ class CsvConverter implements FileConverter {
   }
 }
 
-export async function readGeoJsonFromArchive(
-  archiveFullPath: string,
-  desiredFilename: string,
-): Promise<object> {
+export async function extractPlacesFromArchive(
+  sourceArchive: string,
+  sourceFilename: string,
+): Promise<ExtractedPlace[]> {
   // Available extractors
   const extractors: ArchiveExtractor[] = [new ZipExtractor()];
 
@@ -127,20 +161,24 @@ export async function readGeoJsonFromArchive(
   const converters: FileConverter[] = [new JsonConverter(), new CsvConverter()];
 
   // Find suitable extractor
-  const extractor = extractors.find((e) => e.canHandle(archiveFullPath));
+  const extractor = extractors.find((e) => e.canHandle(sourceArchive));
   if (!extractor) {
-    throw new Error(`${archiveFullPath}: unsupported archive format`);
+    throw new Error(`${sourceArchive}: unsupported archive format`);
   }
 
   // Extract the file
-  const fileContent = await extractor.extract(archiveFullPath, desiredFilename);
+  const fileContent = await extractor.extract(sourceArchive, sourceFilename);
 
   // Find suitable converter
-  const converter = converters.find((c) => c.canHandle(desiredFilename));
+  const converter = converters.find((c) => c.canHandle(sourceFilename));
   if (!converter) {
-    throw new Error(`${desiredFilename}: unsupported file format`);
+    throw new Error(`${sourceFilename}: unsupported file format`);
   }
 
   // Convert to GeoJSON
-  return await converter.convertToGeoJson(fileContent);
+  return await converter.convertToExtractedPlaces(
+    fileContent,
+    sourceArchive,
+    sourceFilename,
+  );
 }

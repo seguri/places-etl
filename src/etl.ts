@@ -1,19 +1,22 @@
 import { resolve } from "node:path";
 import { DOWNLOADS_DIR, isMain } from "./settings.js";
-import { readGeoJsonFromArchive } from "./unarchive.js";
+import { extractPlacesFromArchive } from "./unarchive.js";
 
 async function main() {
-  const archivePath = resolve(
+  const sourceArchive = resolve(
     DOWNLOADS_DIR,
     "takeout-20250325T224539Z-001.zip",
   );
-  const filenames = [
+  const sourceFilenames = [
     "Saved Places.json",
     "Favourite places.csv",
     "Want to go.csv",
   ];
-  for (const filename of filenames) {
-    const json = await readGeoJsonFromArchive(archivePath, filename);
+  for (const sourceFilename of sourceFilenames) {
+    const extractedPlaces = await extractPlacesFromArchive(
+      sourceArchive,
+      sourceFilename,
+    );
     // TODO: Store extracted data in sqlite database
   }
 }
