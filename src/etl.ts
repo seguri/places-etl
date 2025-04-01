@@ -1,8 +1,10 @@
 import { resolve } from "node:path";
+import { Database } from "./database.js";
 import { DOWNLOADS_DIR, isMain } from "./settings.js";
 import { extractPlacesFromArchive } from "./unarchive.js";
 
 async function main() {
+  // Input
   const sourceArchive = resolve(
     DOWNLOADS_DIR,
     "takeout-20250325T224539Z-001.zip",
@@ -12,13 +14,20 @@ async function main() {
     "Favourite places.csv",
     "Want to go.csv",
   ];
-  for (const sourceFilename of sourceFilenames) {
-    const extractedPlaces = await extractPlacesFromArchive(
-      sourceArchive,
-      sourceFilename,
-    );
-    // TODO: Store extracted data in sqlite database
-  }
+
+  // Database
+  using db = new Database();
+
+  // Extract
+  const extractionPromises = sourceFilenames.map((sourceFilename) =>
+    extractPlacesFromArchive(sourceArchive, sourceFilename),
+  );
+  const extractedPlacesArray = await Promise.all(extractionPromises);
+  const extractedPlaces = extractedPlacesArray.flat();
+  console.log(`Extracted ${extractedPlaces.length} places`);
+
+  // Load
+  db.insertPlaces(extractedPlaces);
 }
 
 // Check if this file is being run directly

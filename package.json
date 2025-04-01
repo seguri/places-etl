@@ -7,7 +7,7 @@
     "format": "biome check --write",
     "build": "tsc",
     "etl:dev": "tsx src/etl.ts",
-    "etl": "npm run build && node dist/etl.js",
+    "etl": "npm run build && node --experimental-sqlite dist/etl.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
