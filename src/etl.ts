@@ -29,7 +29,7 @@ async function main() {
   debugExtractedPlaces(extractedPlaces);
 
   // Load
-  db.insertPlaces(extractedPlaces);
+  db.insertExtractedPlaces(extractedPlaces);
 }
 
 // Check if this file is being run directly

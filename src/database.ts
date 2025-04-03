@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { DB_PATH } from "./settings.js";
-import type { ExtractedPlace } from "./types.js";
+import type { ExtractedPlace, ScrapedCoordinate, ValidPlace } from "./types.js";
 
 const createTables = `
 CREATE TABLE IF NOT EXISTS extracted_places (
@@ -14,9 +14,26 @@ CREATE TABLE IF NOT EXISTS extracted_places (
   created_at INTEGER NOT NULL,
   PRIMARY KEY (cid, type)
 );
+
+CREATE TABLE IF NOT EXISTS valid_places (
+  cid TEXT NOT NULL,
+  type TEXT NOT NULL,
+  name TEXT NOT NULL,
+  latitude REAL NOT NULL,
+  longitude REAL NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (cid, type)
+);
+
+CREATE TABLE IF NOT EXISTS scraped_coordinates (
+  cid TEXT NOT NULL,
+  latitude REAL NOT NULL,
+  longitude REAL NOT NULL,
+  PRIMARY KEY (cid)
+);
 `;
 
-const insertPlace = `
+const insertExtractedPlace = `
 INSERT INTO extracted_places (
   cid,
   type,
@@ -29,22 +46,39 @@ INSERT INTO extracted_places (
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 `;
 
-const placeAlreadyExists = (error: unknown): boolean => {
-  return String(error).includes(
-    "UNIQUE constraint failed: extracted_places.cid, extracted_places.type",
-  );
-};
+const insertValidPlace = `
+INSERT INTO valid_places (
+  cid,
+  type,
+  name,
+  latitude,
+  longitude,
+  created_at
+) VALUES (?, ?, ?, ?, ?, ?);
+`;
+
+const insertScrapedCoordinate = `
+INSERT INTO scraped_coordinates (
+  cid,
+  latitude,
+  longitude
+) VALUES (?, ?, ?);
+`;
 
 export class Database implements Disposable {
   private db: DatabaseSync;
-  private insertPlaceStmt;
+  private insertExtractedPlaceStmt;
+  private insertValidPlaceStmt;
+  private insertScrapedCoordinateStmt;
 
   constructor() {
     this.db = new DatabaseSync(DB_PATH);
     this.exec("PRAGMA busy_timeout = 5000;");
     this.exec("PRAGMA journal_mode = WAL;");
     this.exec(createTables);
-    this.insertPlaceStmt = this.db.prepare(insertPlace);
+    this.insertExtractedPlaceStmt = this.db.prepare(insertExtractedPlace);
+    this.insertValidPlaceStmt = this.db.prepare(insertValidPlace);
+    this.insertScrapedCoordinateStmt = this.db.prepare(insertScrapedCoordinate);
   }
 
   [Symbol.dispose](): void {
@@ -62,8 +96,8 @@ export class Database implements Disposable {
     this.db.exec(sql);
   }
 
-  insertPlace(place: ExtractedPlace): void {
-    this.insertPlaceStmt.run(
+  insertExtractedPlace(place: ExtractedPlace): void {
+    this.insertExtractedPlaceStmt.run(
       place.cid,
       place.type,
       place.name ?? null,
@@ -75,30 +109,56 @@ export class Database implements Disposable {
     );
   }
 
-  insertPlaces(places: ExtractedPlace[]): void {
-    let inserted = 0;
-    let skipped = 0;
-    try {
-      this.exec("BEGIN TRANSACTION;");
+  insertValidPlace(place: ValidPlace): void {
+    this.insertValidPlaceStmt.run(
+      place.cid,
+      place.type,
+      place.name,
+      place.latitude,
+      place.longitude,
+      place.createdAt.getTime(),
+    );
+  }
+
+  insertScrapedCoordinate(coordinate: ScrapedCoordinate): void {
+    this.insertScrapedCoordinateStmt.run(
+      coordinate.cid,
+      coordinate.latitude,
+      coordinate.longitude,
+    );
+  }
+
+  insertExtractedPlaces(places: ExtractedPlace[]): void {
+    this.doInTransaction(() => {
+      let skipped = 0;
+      let inserted = 0;
       for (const place of places) {
         try {
-          this.insertPlace(place);
+          this.insertExtractedPlace(place);
           inserted++;
         } catch (insertError) {
-          if (placeAlreadyExists(insertError)) {
+          if (String(insertError).includes("UNIQUE constraint failed")) {
             skipped++;
           } else {
             throw insertError;
           }
         }
       }
-      this.exec("COMMIT;");
-      console.log(`Inserted ${inserted} places`);
+      // Use the future tense because the transaction is not committed yet
+      console.log(`Inserting ${inserted} places`);
       if (skipped > 0) {
-        console.log(`Skipped ${skipped} places`);
+        console.log(`Skipping ${skipped} places`);
       }
-    } catch (transactionError) {
-      console.error("Transaction failed:", transactionError);
+    });
+  }
+
+  private doInTransaction(op: () => void): void {
+    try {
+      this.exec("BEGIN TRANSACTION;");
+      op();
+      this.exec("COMMIT;");
+    } catch (opError) {
+      console.error("Operation failed:", opError);
       try {
         this.exec("ROLLBACK;");
       } catch (rollbackError) {
