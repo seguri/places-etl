@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { Database } from "./database.js";
+import { debugExtractedPlaces } from "./debug.js";
 import { DOWNLOADS_DIR, isMain } from "./settings.js";
 import { extractPlacesFromArchive } from "./unarchive.js";
 
@@ -25,6 +26,7 @@ async function main() {
   const extractedPlacesArray = await Promise.all(extractionPromises);
   const extractedPlaces = extractedPlacesArray.flat();
   console.log(`Extracted ${extractedPlaces.length} places`);
+  debugExtractedPlaces(extractedPlaces);
 
   // Load
   db.insertPlaces(extractedPlaces);

@@ -2,6 +2,8 @@ import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+export const DEBUG = false;
+
 export const BASE_DIR = resolve(import.meta.dirname, "..");
 export const DOWNLOADS_DIR = resolve(homedir(), "Downloads");
 
