@@ -77,6 +77,15 @@ LEFT JOIN
   scraped_coordinates sc ON ep.cid = sc.cid;
 `;
 
+const selectUnpromotedPlaces = `
+SELECT ep.*
+FROM extracted_places ep
+LEFT JOIN valid_places vp
+  ON ep.cid = vp.cid
+  AND ep.type = vp.type
+WHERE vp.cid IS NULL;
+`;
+
 export class Database implements Disposable {
   private db: DatabaseSync;
   private insertExtractedPlaceStmt;
@@ -179,6 +188,11 @@ export class Database implements Disposable {
         console.log(`Skipping ${skipped} coordinates`);
       }
     });
+  }
+
+  selectUnpromotedPlaces(): ExtractedPlace[] {
+    const stmt = this.db.prepare(selectUnpromotedPlaces);
+    return stmt.all() as ExtractedPlace[];
   }
 
   private doInTransaction(op: () => void): void {
