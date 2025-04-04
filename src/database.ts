@@ -65,11 +65,35 @@ INSERT INTO scraped_coordinates (
 ) VALUES (?, ?, ?);
 `;
 
+/** valid_places' NOT NULL clauses take care of invalid places */
+const promoteExtractedPlaces = `
+INSERT OR IGNORE INTO valid_places (
+  cid,
+  type,
+  name,
+  latitude,
+  longitude,
+  created_at
+)
+SELECT
+  ep.cid,
+  ep.type,
+  ep.name,
+  COALESCE(ep.latitude, sc.latitude) AS latitude,
+  COALESCE(ep.longitude, sc.longitude) AS longitude,
+  ep.created_at
+FROM
+  extracted_places ep
+LEFT JOIN
+  scraped_coordinates sc ON ep.cid = sc.cid;
+`;
+
 export class Database implements Disposable {
   private db: DatabaseSync;
   private insertExtractedPlaceStmt;
   private insertValidPlaceStmt;
   private insertScrapedCoordinateStmt;
+  private promoteExtractedPlacesStmt;
 
   constructor() {
     this.db = new DatabaseSync(DB_PATH);
@@ -79,13 +103,13 @@ export class Database implements Disposable {
     this.insertExtractedPlaceStmt = this.db.prepare(insertExtractedPlace);
     this.insertValidPlaceStmt = this.db.prepare(insertValidPlace);
     this.insertScrapedCoordinateStmt = this.db.prepare(insertScrapedCoordinate);
+    this.promoteExtractedPlacesStmt = this.db.prepare(promoteExtractedPlaces);
   }
 
   [Symbol.dispose](): void {
     this.close();
   }
 
-  // Close the database connection
   close(): void {
     if (this.db) {
       this.db.close();
@@ -149,6 +173,12 @@ export class Database implements Disposable {
       if (skipped > 0) {
         console.log(`Skipping ${skipped} places`);
       }
+    });
+  }
+
+  promoteExtractedPlaces(): void {
+    this.doInTransaction(() => {
+      this.promoteExtractedPlacesStmt.run();
     });
   }
 

@@ -1,5 +1,4 @@
 import { resolve } from "node:path";
-import { debugExtractedPlaces } from "./debug.js";
 import { extractPlaces } from "./extract.js";
 import { saveExtractedPlaces } from "./load.js";
 import { DOWNLOADS_DIR, isMain } from "./settings.js";
@@ -19,8 +18,6 @@ async function main() {
 
   // Extract
   const extractedPlaces = await extractPlaces(sourceArchive, sourceFilenames);
-  console.log(`Extracted ${extractedPlaces.length} places`);
-  debugExtractedPlaces(extractedPlaces);
 
   // Load
   saveExtractedPlaces(extractedPlaces);
