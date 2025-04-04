@@ -152,6 +152,30 @@ export class Database implements Disposable {
     });
   }
 
+  insertScrapedCoordinates(coordinates: ScrapedCoordinate[]): void {
+    this.doInTransaction(() => {
+      let skipped = 0;
+      let inserted = 0;
+      for (const coordinate of coordinates) {
+        try {
+          this.insertScrapedCoordinate(coordinate);
+          inserted++;
+        } catch (insertError) {
+          if (String(insertError).includes("UNIQUE constraint failed")) {
+            skipped++;
+          } else {
+            throw insertError;
+          }
+        }
+      }
+      // Use the future tense because the transaction is not committed yet
+      console.log(`Inserting ${inserted} coordinates`);
+      if (skipped > 0) {
+        console.log(`Skipping ${skipped} coordinates`);
+      }
+    });
+  }
+
   private doInTransaction(op: () => void): void {
     try {
       this.exec("BEGIN TRANSACTION;");
