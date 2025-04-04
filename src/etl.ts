@@ -1,8 +1,9 @@
 import { resolve } from "node:path";
-import { Database } from "./database.js";
 import { debugExtractedPlaces } from "./debug.js";
+import { extractPlaces } from "./extract.js";
+import { saveExtractedPlaces } from "./load.js";
 import { DOWNLOADS_DIR, isMain } from "./settings.js";
-import { extractPlacesFromArchive } from "./unarchive.js";
+import { promoteExtractedPlaces } from "./transform.js";
 
 async function main() {
   // Input
@@ -16,20 +17,16 @@ async function main() {
     "Want to go.csv",
   ];
 
-  // Database
-  using db = new Database();
-
   // Extract
-  const extractionPromises = sourceFilenames.map((sourceFilename) =>
-    extractPlacesFromArchive(sourceArchive, sourceFilename),
-  );
-  const extractedPlacesArray = await Promise.all(extractionPromises);
-  const extractedPlaces = extractedPlacesArray.flat();
+  const extractedPlaces = await extractPlaces(sourceArchive, sourceFilenames);
   console.log(`Extracted ${extractedPlaces.length} places`);
   debugExtractedPlaces(extractedPlaces);
 
   // Load
-  db.insertExtractedPlaces(extractedPlaces);
+  saveExtractedPlaces(extractedPlaces);
+
+  // Transform
+  promoteExtractedPlaces();
 }
 
 // Check if this file is being run directly
