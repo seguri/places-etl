@@ -8,6 +8,8 @@
     "build": "tsc",
     "elt:dev": "tsx src/elt.ts",
     "elt": "npm run build && node --experimental-sqlite dist/elt.js",
+    "analyze:dev": "tsx src/analyze.ts",
+    "analyze": "npm run build && node --experimental-sqlite dist/analyze.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
