@@ -91,9 +91,7 @@ LEFT JOIN
 export class Database implements Disposable {
   private db: DatabaseSync;
   private insertExtractedPlaceStmt;
-  private insertValidPlaceStmt;
   private insertScrapedCoordinateStmt;
-  private promoteExtractedPlacesStmt;
 
   constructor() {
     this.db = new DatabaseSync(DB_PATH);
@@ -101,9 +99,7 @@ export class Database implements Disposable {
     this.exec("PRAGMA journal_mode = WAL;");
     this.exec(createTables);
     this.insertExtractedPlaceStmt = this.db.prepare(insertExtractedPlace);
-    this.insertValidPlaceStmt = this.db.prepare(insertValidPlace);
     this.insertScrapedCoordinateStmt = this.db.prepare(insertScrapedCoordinate);
-    this.promoteExtractedPlacesStmt = this.db.prepare(promoteExtractedPlaces);
   }
 
   [Symbol.dispose](): void {
@@ -129,17 +125,6 @@ export class Database implements Disposable {
       place.longitude ?? null,
       place.sourceArchive,
       place.sourceFile,
-      place.createdAt.getTime(),
-    );
-  }
-
-  insertValidPlace(place: ValidPlace): void {
-    this.insertValidPlaceStmt.run(
-      place.cid,
-      place.type,
-      place.name,
-      place.latitude,
-      place.longitude,
       place.createdAt.getTime(),
     );
   }
@@ -177,8 +162,9 @@ export class Database implements Disposable {
   }
 
   promoteExtractedPlaces(): void {
+    const stmt = this.db.prepare(promoteExtractedPlaces);
     this.doInTransaction(() => {
-      this.promoteExtractedPlacesStmt.run();
+      stmt.run();
     });
   }
 
