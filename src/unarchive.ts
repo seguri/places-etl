@@ -1,7 +1,10 @@
 import { text } from "node:stream/consumers";
 import * as csv from "@fast-csv/parse";
 import yauzl from "yauzl-promise";
+import { debugExtractedObjects } from "./debug.js";
 import type { ExtractedPlace } from "./types.js";
+
+const GOOGLE_MAPS_URL_HEX_REGEX = /(?:0x[0-9a-f]+):(0x[0-9a-f]+)$/;
 
 interface ArchiveExtractor {
   canHandle(sourceArchive: string): boolean;
@@ -86,14 +89,9 @@ class JsonConverter implements FileConverter {
     sourceFilename: string,
   ): Promise<ExtractedPlace[]> {
     const createdAt = new Date();
-    const featureCollection = JSON.parse(content);
-    console.log(
-      `${sourceFilename}: ${featureCollection.features.length} features`,
-    );
-    const validFeatures = featureCollection.features.filter(
-      this.validateFeature.bind(this),
-    );
-    console.log(`${sourceFilename}: ${validFeatures.length} valid features`);
+    const features = JSON.parse(content)?.features;
+    const validFeatures = features.filter(this.validateFeature.bind(this));
+    debugExtractedObjects(sourceFilename, features, validFeatures);
     return validFeatures.map(
       (feature: GeoJSONFeature): ExtractedPlace => ({
         cid: this.parseCid(feature.properties.google_maps_url),
@@ -132,7 +130,9 @@ class CsvConverter implements FileConverter {
   ): Promise<ExtractedPlace[]> {
     const createdAt = new Date();
     const rows = await this.parseCsvString(content);
-    return rows.map(
+    const validRows = rows.filter(this.validateRow.bind(this));
+    debugExtractedObjects(sourceFilename, rows, validRows);
+    return validRows.map(
       (row: CsvRow): ExtractedPlace => ({
         cid: this.parseCid(row.URL),
         type: getPlaceType(sourceFilename),
@@ -158,10 +158,15 @@ class CsvConverter implements FileConverter {
     });
   }
 
+  private validateRow(row: CsvRow): boolean {
+    return GOOGLE_MAPS_URL_HEX_REGEX.test(row.URL);
+  }
+
   private parseCid(url: string): string {
-    const match = url.match(/(?:0x[0-9a-f]+):(0x[0-9a-f]+)$/);
+    const match = url.match(GOOGLE_MAPS_URL_HEX_REGEX);
     if (!match) {
-      throw new Error(`Invalid google_maps_url: ${url}`);
+      // Should never happen because we validate the row before
+      throw new Error(`${url}: invalid Google Maps URL`);
     }
     return BigInt(match[1]).toString();
   }

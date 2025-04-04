@@ -1,10 +1,22 @@
 import { DEBUG } from "./settings.js";
 import type { ExtractedPlace } from "./types.js";
 
+export const debugExtractedObjects = (
+  sourceFilename: string,
+  objects: object[],
+  validObjects: object[],
+) => {
+  console.log("--------------------------------");
+  console.log(`${sourceFilename}: ${objects.length} objects`);
+  console.log(`${sourceFilename}: ${validObjects.length} valid objects`);
+};
+
 export const debugExtractedPlaces = (extractedPlaces: ExtractedPlace[]) => {
+  console.log("--------------------------------");
+  console.log(`Extracted ${extractedPlaces.length} places`);
+  console.log("--------------------------------");
   let withoutName = 0;
   let withoutCoordinates = 0;
-  console.log("--------------------------------");
   if (DEBUG) {
     console.log("Places without a name:");
   }
@@ -42,5 +54,4 @@ export const debugExtractedPlaces = (extractedPlaces: ExtractedPlace[]) => {
   }
   console.log(`${withoutName} places without a name`);
   console.log(`${withoutCoordinates} places without coordinates`);
-  console.log("--------------------------------");
 };
