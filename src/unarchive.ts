@@ -1,5 +1,6 @@
 import { text } from "node:stream/consumers";
 import * as csv from "@fast-csv/parse";
+import { DateTime } from "luxon";
 import yauzl from "yauzl-promise";
 import { debugExtractedObjects } from "./debug.js";
 import type { ExtractedPlace } from "./types.js";
@@ -41,6 +42,16 @@ interface CsvRow {
   URL: string;
   Comment: string;
 }
+
+const parseArchiveTimestamp = (sourceArchive: string): Date => {
+  const match = sourceArchive.match(/takeout-(\d{8}T\d{6}Z)/);
+  if (!match) {
+    throw new Error(
+      `${sourceArchive}: could not find a validtimestamp in the archive filename`,
+    );
+  }
+  return DateTime.fromISO(match[1], { zone: "utc" }).toJSDate();
+};
 
 const getPlaceType = (filename: string) => {
   if (filename.includes("Saved Places")) {
@@ -88,7 +99,7 @@ class JsonConverter implements FileConverter {
     sourceArchive: string,
     sourceFilename: string,
   ): Promise<ExtractedPlace[]> {
-    const createdAt = new Date();
+    const createdAt = parseArchiveTimestamp(sourceArchive);
     const features = JSON.parse(content)?.features;
     const validFeatures = features.filter(this.validateFeature.bind(this));
     debugExtractedObjects(sourceFilename, features, validFeatures);
@@ -128,7 +139,7 @@ class CsvConverter implements FileConverter {
     sourceArchive: string,
     sourceFilename: string,
   ): Promise<ExtractedPlace[]> {
-    const createdAt = new Date();
+    const createdAt = parseArchiveTimestamp(sourceArchive);
     const rows = await this.parseCsvString(content);
     const validRows = rows.filter(this.validateRow.bind(this));
     debugExtractedObjects(sourceFilename, rows, validRows);
