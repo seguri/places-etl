@@ -26,6 +26,7 @@
   "homepage": "https://github.com/seguri/places-etl#readme",
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
+    "@types/luxon": "^3.6.2",
     "@types/node": "^22.13.14",
     "@types/yauzl-promise": "^4.0.1",
     "ts-node": "^10.9.2",
@@ -34,6 +35,7 @@
   },
   "dependencies": {
     "@fast-csv/parse": "^5.0.2",
+    "luxon": "^3.6.1",
     "yauzl-promise": "^4.0.0"
   }
 }
