@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { saveArchive } from "./archive.js";
 import { extractPlaces } from "./extract.js";
 import { saveExtractedPlaces } from "./load.js";
 import { DOWNLOADS_DIR, isMain } from "./settings.js";
@@ -15,6 +16,10 @@ async function main() {
     "Favourite places.csv",
     "Want to go.csv",
   ];
+
+  // Save archive
+  const archive = saveArchive(sourceArchive);
+  console.log("Saved archive:", archive);
 
   // Extract
   const extractedPlaces = await extractPlaces(sourceArchive, sourceFilenames);

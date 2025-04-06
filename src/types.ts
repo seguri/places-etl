@@ -1,3 +1,10 @@
+export interface Archive {
+  id: number;
+  path: string;
+  hash: string;
+  createdAt: Date;
+}
+
 export interface ExtractedPlace {
   cid: string;
   type: string;

@@ -208,7 +208,6 @@ export async function extractPlacesFromArchive(
     throw new Error(`${sourceFilename}: unsupported file format`);
   }
 
-  // Convert to GeoJSON
   return await converter.convertToExtractedPlaces(
     fileContent,
     sourceArchive,

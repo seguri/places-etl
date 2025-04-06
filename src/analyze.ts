@@ -3,7 +3,7 @@ import { isMain } from "./settings.js";
 
 async function main() {
   using db = new Database();
-  const unpromotedPlaces = db.selectUnpromotedPlaces();
+  const unpromotedPlaces = db.findUnpromotedPlaces();
   console.log("--------------------------------");
   console.log(`${unpromotedPlaces.length} unpromoted places:`);
   const tableData = unpromotedPlaces.map((place) => ({

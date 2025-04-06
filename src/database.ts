@@ -1,8 +1,15 @@
 import { DatabaseSync } from "node:sqlite";
 import { DB_PATH } from "./settings.js";
-import type { ExtractedPlace, ScrapedCoordinate } from "./types.js";
+import type { Archive, ExtractedPlace, ScrapedCoordinate } from "./types.js";
 
 const createTables = `
+CREATE TABLE IF NOT EXISTS archives (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  path TEXT NOT NULL,
+  hash TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS extracted_places (
   cid TEXT NOT NULL,
   type TEXT NOT NULL,
@@ -31,6 +38,18 @@ CREATE TABLE IF NOT EXISTS scraped_coordinates (
   longitude REAL NOT NULL,
   PRIMARY KEY (cid)
 );
+`;
+
+const insertArchive = `
+INSERT OR IGNORE INTO archives (
+  path,
+  hash,
+  created_at
+) VALUES (?, ?, ?);
+`;
+
+const findArchiveByHash = `
+SELECT * FROM archives WHERE hash = ?;
 `;
 
 const insertExtractedPlace = `
@@ -77,7 +96,7 @@ LEFT JOIN
   scraped_coordinates sc ON ep.cid = sc.cid;
 `;
 
-const selectUnpromotedPlaces = `
+const findUnpromotedPlaces = `
 SELECT ep.*
 FROM extracted_places ep
 LEFT JOIN valid_places vp
@@ -112,6 +131,26 @@ export class Database implements Disposable {
 
   exec(sql: string): void {
     this.db.exec(sql);
+  }
+
+  insertArchive(path: string, hash: string, createdAt: Date): Archive {
+    const insert = this.db.prepare(insertArchive);
+    insert.run(path, hash, createdAt.getTime());
+
+    const select = this.db.prepare(findArchiveByHash);
+    const row = select.get(hash) as {
+      id: number;
+      path: string;
+      hash: string;
+      created_at: number;
+    };
+
+    return {
+      id: row.id,
+      path: row.path,
+      hash: row.hash,
+      createdAt: new Date(row.created_at),
+    };
   }
 
   insertExtractedPlace(place: ExtractedPlace): void {
@@ -190,8 +229,8 @@ export class Database implements Disposable {
     });
   }
 
-  selectUnpromotedPlaces(): ExtractedPlace[] {
-    const stmt = this.db.prepare(selectUnpromotedPlaces);
+  findUnpromotedPlaces(): ExtractedPlace[] {
+    const stmt = this.db.prepare(findUnpromotedPlaces);
     return stmt.all() as ExtractedPlace[];
   }
 
