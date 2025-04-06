@@ -3,13 +3,13 @@ import * as csv from "@fast-csv/parse";
 import { DateTime } from "luxon";
 import yauzl from "yauzl-promise";
 import { debugExtractedObjects } from "./debug.js";
-import type { ExtractedPlace } from "./types.js";
+import type { Archive, ExtractedPlace } from "./types.js";
 
 const GOOGLE_MAPS_URL_HEX_REGEX = /(?:0x[0-9a-f]+):(0x[0-9a-f]+)$/;
 
 interface ArchiveExtractor {
   canHandle(sourceArchive: string): boolean;
-  extract(sourceArchive: string, sourceFilename: string): Promise<string>;
+  extract(sourceArchive: Archive, sourceFilename: string): Promise<string>;
 }
 
 /** Converts file content to ExtractedPlace[] */
@@ -17,7 +17,7 @@ interface FileConverter {
   canHandle(filename: string): boolean;
   convertToExtractedPlaces(
     content: string,
-    sourceArchive: string,
+    sourceArchive: Archive,
     sourceFilename: string,
   ): Promise<ExtractedPlace[]>;
 }
@@ -71,8 +71,8 @@ class ZipExtractor implements ArchiveExtractor {
     return archivePath.endsWith(".zip");
   }
 
-  async extract(archivePath: string, filename: string): Promise<string> {
-    const zip = await yauzl.open(archivePath);
+  async extract(archive: Archive, filename: string): Promise<string> {
+    const zip = await yauzl.open(archive.path);
     try {
       for await (const entry of zip) {
         if (entry.filename.endsWith(filename)) {
@@ -81,7 +81,7 @@ class ZipExtractor implements ArchiveExtractor {
           return content;
         }
       }
-      throw new Error(`'${filename}': no such file inside '${archivePath}'`);
+      throw new Error(`'${filename}': no such file inside '${archive.path}'`);
     } finally {
       await zip.close();
     }
@@ -96,10 +96,9 @@ class JsonConverter implements FileConverter {
 
   async convertToExtractedPlaces(
     content: string,
-    sourceArchive: string,
+    sourceArchive: Archive,
     sourceFilename: string,
   ): Promise<ExtractedPlace[]> {
-    const createdAt = parseArchiveTimestamp(sourceArchive);
     const features = JSON.parse(content)?.features;
     const validFeatures = features.filter(this.validateFeature.bind(this));
     debugExtractedObjects(sourceFilename, features, validFeatures);
@@ -110,9 +109,8 @@ class JsonConverter implements FileConverter {
         name: feature?.properties?.location?.name,
         latitude: feature.geometry.coordinates[1],
         longitude: feature.geometry.coordinates[0],
-        sourceArchive: sourceArchive,
-        sourceFile: sourceFilename,
-        createdAt: createdAt,
+        createdAt: sourceArchive.createdAt,
+        archiveId: sourceArchive.id,
       }),
     );
   }
@@ -136,10 +134,9 @@ class CsvConverter implements FileConverter {
 
   async convertToExtractedPlaces(
     content: string,
-    sourceArchive: string,
+    sourceArchive: Archive,
     sourceFilename: string,
   ): Promise<ExtractedPlace[]> {
-    const createdAt = parseArchiveTimestamp(sourceArchive);
     const rows = await this.parseCsvString(content);
     const validRows = rows.filter(this.validateRow.bind(this));
     debugExtractedObjects(sourceFilename, rows, validRows);
@@ -150,9 +147,8 @@ class CsvConverter implements FileConverter {
         name: row.Title,
         latitude: Number.NaN,
         longitude: Number.NaN,
-        sourceArchive: sourceArchive,
-        sourceFile: sourceFilename,
-        createdAt: createdAt,
+        createdAt: sourceArchive.createdAt,
+        archiveId: sourceArchive.id,
       }),
     );
   }
@@ -184,7 +180,7 @@ class CsvConverter implements FileConverter {
 }
 
 export async function extractPlacesFromArchive(
-  sourceArchive: string,
+  sourceArchive: Archive,
   sourceFilename: string,
 ): Promise<ExtractedPlace[]> {
   // Available extractors
@@ -194,7 +190,7 @@ export async function extractPlacesFromArchive(
   const converters: FileConverter[] = [new JsonConverter(), new CsvConverter()];
 
   // Find suitable extractor
-  const extractor = extractors.find((e) => e.canHandle(sourceArchive));
+  const extractor = extractors.find((e) => e.canHandle(sourceArchive.path));
   if (!extractor) {
     throw new Error(`${sourceArchive}: unsupported archive format`);
   }

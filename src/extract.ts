@@ -1,9 +1,9 @@
 import { debugExtractedPlaces } from "./debug.js";
-import type { ExtractedPlace } from "./types.js";
+import type { Archive, ExtractedPlace } from "./types.js";
 import { extractPlacesFromArchive } from "./unarchive.js";
 
 export const extractPlaces = async (
-  sourceArchive: string,
+  sourceArchive: Archive,
   sourceFilenames: string[],
 ): Promise<ExtractedPlace[]> => {
   const extractionPromises = sourceFilenames.map((sourceFilename) =>

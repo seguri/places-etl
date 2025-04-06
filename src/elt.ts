@@ -7,7 +7,7 @@ import { promoteExtractedPlaces } from "./transform.js";
 
 async function main() {
   // Input
-  const sourceArchive = resolve(
+  const sourceArchivePath = resolve(
     DOWNLOADS_DIR,
     "takeout-20250325T224539Z-001.zip",
   );
@@ -18,8 +18,7 @@ async function main() {
   ];
 
   // Save archive
-  const archive = saveArchive(sourceArchive);
-  console.log("Saved archive:", archive);
+  const sourceArchive = saveArchive(sourceArchivePath);
 
   // Extract
   const extractedPlaces = await extractPlaces(sourceArchive, sourceFilenames);

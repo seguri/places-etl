@@ -11,9 +11,8 @@ export interface ExtractedPlace {
   name?: string;
   latitude?: number;
   longitude?: number;
-  sourceArchive: string;
-  sourceFile: string;
   createdAt: Date;
+  archiveId: number;
 }
 
 export interface ValidPlace {

@@ -16,10 +16,10 @@ CREATE TABLE IF NOT EXISTS extracted_places (
   name TEXT,
   latitude REAL,
   longitude REAL,
-  source_archive TEXT NOT NULL,
-  source_file TEXT NOT NULL,
   created_at INTEGER NOT NULL,
-  PRIMARY KEY (cid, type)
+  archive_id INTEGER NOT NULL,
+  PRIMARY KEY (cid, type),
+  FOREIGN KEY (archive_id) REFERENCES archives(id)
 );
 
 CREATE TABLE IF NOT EXISTS valid_places (
@@ -59,10 +59,9 @@ INSERT INTO extracted_places (
   name,
   latitude,
   longitude,
-  source_archive,
-  source_file,
-  created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+  created_at,
+  archive_id
+) VALUES (?, ?, ?, ?, ?, ?, ?);
 `;
 
 const insertScrapedCoordinate = `
@@ -160,9 +159,8 @@ export class Database implements Disposable {
       place.name ?? null,
       place.latitude ?? null,
       place.longitude ?? null,
-      place.sourceArchive,
-      place.sourceFile,
       place.createdAt.getTime(),
+      place.archiveId,
     );
   }
 
