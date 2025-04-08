@@ -16,3 +16,18 @@ INSERT INTO valid_places (cid, type, name, latitude, longitude, created_at) VALU
 
 ## How to manage places that change list?
 
+## SQLite transactions
+
+I've tested transactions in `database.ts` with the `testTransaction` method:
+
+```typescript
+testTransaction(): void {
+  this.doInTransaction(() => {
+    this.exec("INSERT INTO test (text) VALUES ('transaction-test');");
+    this.exec("THIS IS INVALID SQL");
+    this.exec("INSERT INTO test (text) VALUES ('should-not-exist');");
+  });
+}
+```
+
+And there was no record in table `test` after running the test.
