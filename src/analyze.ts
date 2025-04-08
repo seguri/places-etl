@@ -6,15 +6,28 @@ async function main() {
   const unpromotedPlaces = db.findUnpromotedPlaces();
   console.log("--------------------------------");
   console.log(`${unpromotedPlaces.length} unpromoted places:`);
-  const tableData = unpromotedPlaces.map((place) => ({
-    cid: `https://maps.google.com/?cid=${place.cid}`,
-    type: place.type,
-    name: place.name?.substring(0, 30) || "n/a",
-    latitude: place.latitude || "n/a",
-    longitude: place.longitude || "n/a",
-  }));
+  console.table(
+    unpromotedPlaces.map((place) => ({
+      cid: `https://maps.google.com/?cid=${place.cid}`,
+      type: place.type,
+      name: place.name?.substring(0, 30) || "n/a",
+      latitude: place.latitude || "n/a",
+      longitude: place.longitude || "n/a",
+    })),
+  );
 
-  console.table(tableData);
+  console.log("--------------------------------");
+  const placesSavedManyTimes = db.findPlacesSavedManyTimes();
+  console.log(`${placesSavedManyTimes.length} places saved many times:`);
+  console.table(
+    placesSavedManyTimes.map((row) => ({
+      archive_id: row.archive_id,
+      occurrence_count: row.occurrence_count,
+      cid: `https://maps.google.com/?cid=${row.cid}`,
+      name: (row.name as string)?.substring(0, 30) || "n/a",
+      types: row.place_types,
+    })),
+  );
 }
 
 // Check if this file is being run directly

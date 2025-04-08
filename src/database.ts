@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS extracted_places (
   longitude REAL,
   created_at INTEGER NOT NULL,
   archive_id INTEGER NOT NULL,
-  PRIMARY KEY (cid, type),
+  PRIMARY KEY (cid, type, archive_id),
   FOREIGN KEY (archive_id) REFERENCES archives(id)
 );
 
@@ -102,6 +102,23 @@ LEFT JOIN valid_places vp
   ON ep.cid = vp.cid
   AND ep.type = vp.type
 WHERE vp.cid IS NULL;
+`;
+
+const findPlacesSavedManyTimes = `
+SELECT
+  archive_id,
+  COUNT(*) AS occurrence_count,
+  cid,
+  name,
+  GROUP_CONCAT(type) AS place_types
+FROM
+  extracted_places
+GROUP BY
+  archive_id, cid
+HAVING
+  COUNT(*) > 1
+ORDER BY
+  archive_id, occurrence_count DESC;
 `;
 
 export class Database implements Disposable {
@@ -230,6 +247,11 @@ export class Database implements Disposable {
   findUnpromotedPlaces(): ExtractedPlace[] {
     const stmt = this.db.prepare(findUnpromotedPlaces);
     return stmt.all() as ExtractedPlace[];
+  }
+
+  findPlacesSavedManyTimes(): Record<string, unknown>[] {
+    const stmt = this.db.prepare(findPlacesSavedManyTimes);
+    return stmt.all() as Record<string, unknown>[];
   }
 
   private doInTransaction(op: () => void): void {
