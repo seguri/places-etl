@@ -86,8 +86,8 @@ SELECT
   ep.cid,
   ep.type,
   ep.name,
-  COALESCE(ep.latitude, sc.latitude) AS latitude,
-  COALESCE(ep.longitude, sc.longitude) AS longitude,
+  COALESCE(sc.latitude, ep.latitude) AS latitude,
+  COALESCE(sc.longitude, ep.longitude) AS longitude,
   ep.created_at
 FROM
   extracted_places ep
