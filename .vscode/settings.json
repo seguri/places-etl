@@ -1,11 +1,14 @@
 {
-  "sqltools.useNodeRuntime": "C:\\Users\\msegu\\AppData\\Local\\Volta\\tools\\image\\node\\22.13.1\\node.exe",
+  "[sql]": {
+    "editor.formatOnSave": false
+  },
   "sqltools.connections": [
     {
-      "previewLimit": 50,
-      "driver": "SQLite",
       "database": "${workspaceFolder:places-etl}/places.db",
-      "name": "places (localhost)"
+      "driver": "SQLite",
+      "name": "places (localhost)",
+      "previewLimit": 50
     }
-  ]
+  ],
+  "sqltools.useNodeRuntime": "C:\\Users\\msegu\\AppData\\Local\\Volta\\tools\\image\\node\\22.13.1\\node.exe"
 }
