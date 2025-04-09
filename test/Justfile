@@ -1,0 +1,32 @@
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
+
+sqlite := 'sqlite3.exe -header -column'
+dbname := 'test.db'
+
+setup:
+    {{ sqlite }} {{ dbname }} ".read schema.sql"
+    {{ sqlite }} {{ dbname }} ".read data.sql"
+
+cte:
+    @echo Expected:
+    @echo "Padellone : type=saved     lat=52"
+    @echo "Bonajuto  : type=saved     lat=36"
+    @echo "Dicke     : type=saved     lat=52"
+    @echo "Frigerio  : type=favourite lat=45"
+    @echo "Peggiorato: type=saved     lat=5"
+    @echo "Stranero  : type=saved     lat=52"
+    {{ sqlite }} {{ dbname }} ".read promote-cte.sql"
+
+valid:
+    {{ sqlite }} {{ dbname }} "SELECT * FROM valid_places;"
+
+ai:
+    @echo Expected:
+    @echo "Bonajuto  : type=saved     lat=36"
+    @echo "Dicke     : type=saved     lat=52"
+    @echo "Frigerio  : type=favourite lat=45"
+    @echo "Padellone : type=saved     lat=52"
+    @echo "Peggiorato: type=saved     lat=5"
+    @echo "Stranero  : type=saved     lat=52"
+    {{ sqlite }} {{ dbname }} ".read ai.sql"
+
