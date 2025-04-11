@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS valid_places (
   name TEXT NOT NULL,
   latitude REAL NOT NULL,
   longitude REAL NOT NULL,
-  created_at INTEGER NOT NULL,
   PRIMARY KEY (cid, type)
 );
 
@@ -74,25 +73,59 @@ INSERT INTO scraped_coordinates (
 
 /** valid_places' NOT NULL clauses take care of invalid places */
 const promoteExtractedPlaces = `
-INSERT OR IGNORE INTO valid_places (
+WITH ranked_places AS (
+  SELECT
+    ep.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY ep.cid
+      ORDER BY
+        ep.created_at DESC,
+        -- I've demoted 'saved' to 3 because if I add 'saved' to every place, coordinates will be automatically available in the takeout
+        CASE ep.type
+          WHEN 'favourite' THEN 1
+          WHEN 'wishlist' THEN 2
+          WHEN 'saved' THEN 3
+          ELSE 4
+        END
+    ) AS type_rank,
+    ROW_NUMBER() OVER (
+      PARTITION BY ep.cid
+      ORDER BY
+        CASE
+          WHEN latitude IS NOT NULL AND longitude IS NOT NULL THEN 0
+          ELSE 1
+        END,
+        ep.created_at DESC
+    ) AS coordinates_rank
+  FROM extracted_places ep
+),
+best_places AS (
+  SELECT
+    best_type.cid,
+    best_type.type,
+    best_type.name,
+    -- WARNING: latitude and longitude are swapped in scraped_coordinates
+    COALESCE(best_coords.latitude, sc.longitude) AS latitude,
+    COALESCE(best_coords.longitude, sc.latitude) AS longitude
+  FROM
+    (SELECT * FROM ranked_places WHERE type_rank = 1) best_type
+  LEFT JOIN
+    (SELECT * FROM ranked_places WHERE coordinates_rank = 1) best_coords
+    ON best_type.cid = best_coords.cid
+  LEFT JOIN
+    scraped_coordinates sc
+    ON best_type.cid = sc.cid
+)
+INSERT OR REPLACE INTO valid_places (
   cid,
   type,
   name,
   latitude,
-  longitude,
-  created_at
+  longitude
 )
-SELECT
-  ep.cid,
-  ep.type,
-  ep.name,
-  COALESCE(sc.latitude, ep.latitude) AS latitude,
-  COALESCE(sc.longitude, ep.longitude) AS longitude,
-  ep.created_at
-FROM
-  extracted_places ep
-LEFT JOIN
-  scraped_coordinates sc ON ep.cid = sc.cid;
+SELECT bp.*
+FROM best_places bp
+WHERE bp.latitude IS NOT NULL AND bp.longitude IS NOT NULL;
 `;
 
 const findUnpromotedPlaces = `
