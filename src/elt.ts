@@ -9,7 +9,7 @@ async function main() {
   // Input
   const sourceArchivePath = resolve(
     DOWNLOADS_DIR,
-    "takeout-20250325T224539Z-001.zip",
+    "takeout-20250724T135709Z-1-001.zip",
   );
   const sourceFilenames = [
     "Saved Places.json",
